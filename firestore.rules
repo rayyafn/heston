@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'displayName', 'email']) 
+          && data.uid == request.auth.uid
+          && data.displayName is string && data.displayName.size() <= 100
+          && data.email == request.auth.token.email
+          && (!('username' in data) || (data.username is string && data.username.size() <= 30))
+          && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
+          && (!('location' in data) || (data.location is string && data.location.size() <= 100))
+          && (!('isPremium' in data) || data.isPremium is bool);
+      }
+
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      
+      allow create: if isEmailVerified() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'username', 'bio', 'location', 'title', 'isPremium'])
+      );
+    }
+
+    // --- Posts ---
+    match /posts/{postId} {
+      function isValidPost(data) {
+        return data.keys().hasAll(['authorId', 'type', 'title', 'createdAt'])
+          && data.authorId == request.auth.uid
+          && data.type in ['vaga', 'palestra', 'general']
+          && data.title is string && data.title.size() <= 200
+          && (!('description' in data) || (data.description is string && data.description.size() <= 2000))
+          && (resource == null ? data.createdAt == request.time : data.createdAt == resource.data.createdAt);
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && isValidId(postId) && isValidPost(incoming());
+      allow update: if isOwner(existing().authorId) && isValidPost(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'color', 'textColor'])
+      );
+      allow delete: if isOwner(existing().authorId);
+    }
+
+    // --- Chats ---
+    match /chats/{chatId} {
+      function isParticipant() {
+        return isSignedIn() && request.auth.uid in resource.data.participants;
+      }
+      
+      allow get: if isParticipant();
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
+      
+      allow create: if isEmailVerified() && isValidId(chatId) 
+        && incoming().participants.size() == 2
+        && request.auth.uid in incoming().participants;
+        
+      allow update: if isParticipant() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastTimestamp', 'unreadCount'])
+      );
+
+      match /messages/{messageId} {
+        allow read: if isParticipant();
+        allow create: if isParticipant() && isValidId(messageId)
+          && incoming().senderId == request.auth.uid
+          && incoming().text is string && incoming().text.size() <= 1000
+          && incoming().timestamp == request.time;
+      }
+    }
+
+    // --- Jobs ---
+    match /jobs/{jobId} {
+      allow read: if isSignedIn();
+      // Only system or verified companies can write (simplified for now to owner)
+      allow create, update: if isEmailVerified() && isValidId(jobId);
+    }
+
+    // --- Courses ---
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && isValidId(courseId)
+        && incoming().teacherName is string
+        && incoming().price is number && incoming().price >= 0;
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "username": { "type": "string" },
+        "bio": { "type": "string" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "location": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["individual", "company"] },
+        "isPremium": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Feed post (Job opening, Lecture, etc.)",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "type": { "type": "string", "enum": ["vaga", "palestra", "general"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "color": { "type": "string" },
+        "textColor": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "type", "title"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Conversation summary between users",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastTimestamp": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Indivdual message within a chat",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Job": {
+      "title": "Job",
+      "description": "Job listing",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "title": { "type": "string" },
+        "roles": { "type": "number" },
+        "requirements": { "type": "string" },
+        "location": { "type": "string" },
+        "salary": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Course for sale",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Public user profile"
+    },
+    "posts/{postId}": {
+      "schema": "Post",
+      "description": "Feed entries"
+    },
+    "chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat meta information"
+    },
+    "chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages in a chat"
+    },
+    "jobs/{jobId}": {
+      "schema": "Job",
+      "description": "Available jobs"
+    },
+    "courses/{courseId}": {
+      "schema": "Course",
+      "description": "Available courses"
+    }
+  }
+}
